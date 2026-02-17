@@ -1,0 +1,48 @@
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: fintech_db
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-fintech_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data # Persistencia requerida 
+    networks:
+      - fintech_network
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: fintech_api
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@db:5432/${DB_NAME:-fintech_db}
+    ports:
+      - "8000:8000"
+    networks:
+      - fintech_network
+
+  ui:
+    build:
+      context: .
+      dockerfile: Dockerfile.ui
+    container_name: fintech_ui
+    depends_on:
+      - api
+    ports:
+      - "8501:8501"
+    networks:
+      - fintech_network
+
+networks:
+  fintech_network: # Red interna para comunicación entre contenedores [cite: 146]
+    driver: bridge
+
+volumes:
+  postgres_data:
