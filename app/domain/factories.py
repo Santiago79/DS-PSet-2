@@ -16,16 +16,7 @@ class TransactionFactory:
     @staticmethod
     def create_deposit(amount: Decimal, account_id: UUID) -> Transaction:
         """Crea una transacción de depósito.
-        
-        Args:
-            amount: Monto a depositar (mayor a 0)
-            account_id: ID de la cuenta destino
-            
-        Returns:
-            Transaction: Transacción creada con status PENDING
-            
-        Raises:
-            ValidationError: Si amount <= 0 o account_id es inválido
+    
         """
         # Validaciones 
         if amount <= 0:
