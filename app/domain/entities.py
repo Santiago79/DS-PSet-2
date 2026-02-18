@@ -97,9 +97,18 @@ class Transaction:
             raise ValidationError("Una transferencia requiere una cuenta de destino")
 
 @dataclass
+class LedgerDirection(str, Enum):
+    DEBIT = "debit"
+    CREDIT = "credit"
+    
+@dataclass
 class LedgerEntry:
     account_id: str
     transaction_id: str
-    direction: str # "DEBIT" o "CREDIT"
+    direction: LedgerDirection
     amount: float
     id: str = field(default_factory=lambda: str(uuid4()))
+
+    def __post_init__(self) -> None:
+        if self.amount <= 0:
+            raise ValidationError("El monto del ledger debe ser positivo") [cite: 76]
