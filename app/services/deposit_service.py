@@ -61,7 +61,7 @@ class DepositService:
                 if not is_valid:
                     # Rechazar transacción
                     transaction.status = TransactionStatus.REJECTED
-                    self.transaction_repo.update_status(transaction.id, transaction.status.value)
+                    self.transaction_repo.update_status(transaction.id, transaction.status)
                     raise TransactionRejectedError(message)
             
             # 6. Calcular comisión (si aplica)
@@ -73,7 +73,7 @@ class DepositService:
             
             # 8. Aprobar transacción
             transaction.status = TransactionStatus.APPROVED
-            self.transaction_repo.update_status(transaction.id, transaction.status.value)
+            self.transaction_repo.update_status(transaction.id, transaction.status)
             
             return transaction
             
@@ -81,5 +81,5 @@ class DepositService:
             # Si algo falla, aseguramos que la transacción quede REJECTED
             if transaction.status != TransactionStatus.REJECTED:
                 transaction.status = TransactionStatus.REJECTED
-                self.transaction_repo.update_status(transaction.id, transaction.status.value)
+                self.transaction_repo.update_status(transaction.id, transaction.status)
             raise e
