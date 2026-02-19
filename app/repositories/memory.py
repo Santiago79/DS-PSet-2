@@ -1,6 +1,5 @@
 from __future__ import annotations
 from datetime import datetime, timedelta
-from locale import currency
 from app.domain.entities import Customer, Account, Transaction
 from app.domain.enums import TransactionStatus
 from app.domain.exceptions import NotFoundError
@@ -49,7 +48,7 @@ class InMemoryAccountRepo:
         self._data[account.id] = account
 
     def find_by_currency(self, currency: str) -> list[Account]:
-        """Implementación necesaria para cumplir con el protocolo de búsqueda por moneda"""
+        """Implementación solicitada para búsqueda por moneda"""
         return [acc for acc in self._data.values() if acc.currency == currency]
 
 class InMemoryTransactionRepo:
@@ -64,6 +63,12 @@ class InMemoryTransactionRepo:
             raise NotFoundError('Transacción no encontrada!')
         return self._data[transaction_id]
 
+    def update_status(self, transaction_id: str, status: TransactionStatus) -> None:
+        """Actualiza el estado de la transacción usando el Enum core"""
+        if transaction_id not in self._data:
+            raise NotFoundError('Transacción no encontrada para actualizar estado!')
+        self._data[transaction_id].status = status
+
     def find_by_account(self, account_id: str) -> list[Transaction]:
         return [t for t in self._data.values() if t.account_id == account_id]
 
@@ -72,11 +77,3 @@ class InMemoryTransactionRepo:
         limit = now - timedelta(minutes=minutes)
         return [t for t in self._data.values() 
                 if t.account_id == account_id and t.created_at >= limit]
-    
-    def update_status(self, transaction_id: str, status: TransactionStatus) -> None:
-        """Implementación necesaria para actualizar el estado de una transacción"""
-        if transaction_id not in self._data:
-            raise NotFoundError('Transacción no encontrada para actualizar estado!')
-        
-        transaction = self._data[transaction_id]
-        transaction.status = status
