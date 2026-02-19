@@ -1,6 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
+from decimal import Decimal
 from uuid import uuid4
 import re
 
@@ -34,7 +35,7 @@ class Account:
     customer_id: str
     currency: str = "USD"
     id: str = field(default_factory=lambda: str(uuid4()))
-    _balance: float = 0.0
+    _balance: Decimal = Decimal("0.0") 
     _status: AccountStatus = AccountStatus.ACTIVE
 
     @property
@@ -82,7 +83,7 @@ class Account:
 @dataclass
 class Transaction:
     type: TransactionType
-    amount: float
+    amount: Decimal
     account_id: str
     target_account_id: str | None = None
     currency: str = "USD"
