@@ -1,5 +1,6 @@
 from datetime import datetime
 from pydantic import BaseModel, Field, field_validator, ValidationInfo
+from decimal import Decimal
 
 from app.domain.enums import AccountStatus, TransactionStatus, TransactionType
 
@@ -39,7 +40,7 @@ class AccountResponse(BaseModel):
     id: str
     customer_id: str
     currency: str
-    balance: float
+    balance: Decimal
     status: AccountStatus
 
 
@@ -47,16 +48,16 @@ class AccountResponse(BaseModel):
 
 class DepositRequest(BaseModel):
     account_id: str = Field(min_length=1, description="ID de la cuenta destino")
-    amount: float = Field(gt=0, description="Monto a depositar")
+    amount: Decimal = Field(gt=0, description="Monto a depositar")
 
 class WithdrawRequest(BaseModel):
     account_id: str = Field(min_length=1, description="ID de la cuenta de la cual retirar")
-    amount: float = Field(gt=0, description="Monto a retirar")
+    amount: Decimal = Field(gt=0, description="Monto a retirar")
 
 class TransferRequest(BaseModel):
     from_account_id: str = Field(min_length=1, description="ID de la cuenta origen")
     to_account_id: str = Field(min_length=1, description="ID de la cuenta destino")
-    amount: float = Field(gt=0, description="Monto a transferir")
+    amount: Decimal = Field(gt=0, description="Monto a transferir")
 
     @field_validator("to_account_id")
     @classmethod
@@ -68,7 +69,7 @@ class TransferRequest(BaseModel):
 class TransactionResponse(BaseModel):
     id: str
     type: TransactionType
-    amount: float
+    amount: Decimal
     currency: str
     status: TransactionStatus
     created_at: datetime
