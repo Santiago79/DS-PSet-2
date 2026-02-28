@@ -2,7 +2,7 @@ from decimal import Decimal
 from uuid import UUID
 
 from app.domain.entities import Account, Transaction
-from app.domain.enums import TransactionStatus, TransactionType
+from app.domain.enums import TransactionStatus
 from app.domain.exceptions import (
     TransactionRejectedError,
     ValidationError,
@@ -13,11 +13,10 @@ from app.services.strategies.fee_strategies import FeeStrategy
 from app.services.strategies.risk_strategies import RiskStrategy
 
 
-
 class DepositService:
     """Servicio para realizar depósitos en cuentas.
     
-    Implementa el caso de uso de depósito 
+    Implementa el caso de uso de depósito requerido en el PDF (sección 3.2).
     """
     
     def __init__(
@@ -49,7 +48,7 @@ class DepositService:
         account.check_can_operate()
         
         # 3. Crear transacción (PENDING)
-        transaction = TransactionFactory.get_creator(TransactionType.DEPOSIT).create(amount, account_id)
+        transaction = TransactionFactory.create_deposit(amount, account_id)
         self.transaction_repo.add(transaction)
         
         try:
