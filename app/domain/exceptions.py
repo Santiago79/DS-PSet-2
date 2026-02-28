@@ -8,6 +8,10 @@ class ValidationError(BankingError):
     """Error cuando los datos de entrada no cumplen las reglas básicas"""
     pass
 
+class DuplicateEmailError(BankingError):
+    """Lanzada cuando ya existe un cliente con el mismo email"""
+    pass
+
 class InvalidStatusTransition(BankingError):
     """Error cuando se intenta un cambio de estado prohibido (ej. CLOSED -> ACTIVE)"""
     pass
