@@ -1,150 +1,100 @@
-from __future__ import annotations
-from sqlalchemy import select
+from typing import Optional, List
 from sqlalchemy.orm import Session
-from datetime import datetime, timedelta
-
+from sqlalchemy import select
 from app.domain.entities import Customer, Account, Transaction
-from app.domain.enums import AccountStatus, TransactionStatus
-from app.domain.exceptions import NotFoundError
 from app.repositories.models import CustomerModel, AccountModel, TransactionModel
 
 class PostgresCustomerRepo:
-    def __init__(self, session: Session) -> None:
+    def __init__(self, session: Session):
         self.session = session
 
     def add(self, customer: Customer) -> None:
-        # Se incluye status al crear el modelo como pidió mecueval
-        modelo = CustomerModel(
+        model = CustomerModel(
             id=customer.id,
             name=customer.name,
             email=customer.email,
-            status=customer.active # Mapeo al campo de estatus del modelo
+            status=customer.status # Campo solicitado por mecueval
         )
-        self.session.add(modelo)
+        self.session.add(model)
         self.session.commit()
 
-    def get_by_id(self, customer_id: str) -> Customer:
-        modelo = self.session.get(CustomerModel, customer_id)
-        if modelo is None:
-            raise NotFoundError('Cliente no encontrado')
+    def get_by_id(self, customer_id: str) -> Optional[Customer]:
+        # Ahora retorna None si no se encuentra
+        model = self.session.get(CustomerModel, customer_id)
+        if not model:
+            return None
         return Customer(
-            id=modelo.id, 
-            name=modelo.name, 
-            email=modelo.email, 
-            active=modelo.status
+            id=model.id, 
+            name=model.name, 
+            email=model.email, 
+            status=model.status
         )
 
-    def get_by_email(self, email: str) -> Customer:
-        modelo = self.session.execute(
-            select(CustomerModel).where(CustomerModel.email == email)
-        ).scalar_one_or_none()
-        if modelo is None:
-            raise NotFoundError('Cliente con ese email no encontrado')
+    def get_by_email(self, email: str) -> Optional[Customer]:
+        # Ahora retorna None si no se encuentra
+        stmt = select(CustomerModel).where(CustomerModel.email == email)
+        model = self.session.execute(stmt).scalars().first()
+        if not model:
+            return None
         return Customer(
-            id=modelo.id, 
-            name=modelo.name, 
-            email=modelo.email, 
-            active=modelo.status
+            id=model.id, 
+            name=model.name, 
+            email=model.email, 
+            status=model.status
         )
 
 class PostgresAccountRepo:
-    def __init__(self, session: Session) -> None:
+    def __init__(self, session: Session):
         self.session = session
 
     def add(self, account: Account) -> None:
-        modelo = AccountModel(
+        model = AccountModel(
             id=account.id,
             customer_id=account.customer_id,
-            balance=account.balance,
+            balance=account.balance, # Numeric(20,4)
             currency=account.currency,
             status=account.status
         )
-        self.session.add(modelo)
+        self.session.add(model)
         self.session.commit()
 
-    def get_by_id(self, account_id: str) -> Account:
-        modelo = self.session.get(AccountModel, account_id)
-        if modelo is None:
-            raise NotFoundError('Cuenta no encontrada')
-        
-        # Reconstrucción de estado inyectando valores a campos privados _
+    def get_by_id(self, account_id: str) -> Optional[Account]:
+        model = self.session.get(AccountModel, account_id)
+        if not model:
+            return None
         return Account(
-            id=modelo.id,
-            customer_id=modelo.customer_id,
-            currency=modelo.currency,
-            _balance=modelo.balance,
-            _status=modelo.status
+            id=model.id,
+            customer_id=model.customer_id,
+            currency=model.currency,
+            _balance=model.balance,
+            status=model.status
         )
 
-    def update(self, account: Account) -> None:
-        modelo = self.session.get(AccountModel, account.id)
-        if modelo is None:
-            raise NotFoundError('Cuenta no encontrada para actualizar')
-        
-        modelo.balance = account.balance
-        modelo.status = account.status
-        self.session.commit()
-
 class PostgresTransactionRepo:
-    def __init__(self, session: Session) -> None:
+    def __init__(self, session: Session):
         self.session = session
 
     def add(self, transaction: Transaction) -> None:
-        modelo = TransactionModel(
+        model = TransactionModel(
             id=transaction.id,
             account_id=transaction.account_id,
-            target_account_id=transaction.target_account_id,
-            type=transaction.type,
             amount=transaction.amount,
+            type=transaction.type,
             status=transaction.status,
             created_at=transaction.created_at
         )
-        self.session.add(modelo)
+        self.session.add(model)
         self.session.commit()
 
-    def get_by_id(self, transaction_id: str) -> Transaction:
-        modelo = self.session.get(TransactionModel, transaction_id)
-        if modelo is None:
-            raise NotFoundError('Transacción no encontrada')
-        
+    def get_by_id(self, transaction_id: str) -> Optional[Transaction]:
+        model = self.session.get(TransactionModel, transaction_id)
+        if not model:
+            return None
         return Transaction(
-            id=modelo.id,
-            account_id=modelo.account_id,
-            target_account_id=modelo.target_account_id,
-            amount=modelo.amount,
-            type=modelo.type,
-            currency="USD",
-            created_at=modelo.created_at,
-            _status=modelo.status
+            id=model.id,
+            account_id=model.account_id,
+            amount=model.amount,
+            type=model.type,
+            status=model.status,
+            created_at=model.created_at
         )
-
-    def update_status(self, transaction_id: str, status: TransactionStatus) -> None:
-        modelo = self.session.get(TransactionModel, transaction_id)
-        if modelo is None:
-            raise NotFoundError('Transacción no encontrada')
-        
-        modelo.status = status
-        self.session.commit()
-
-    def list_recent(self, account_id: str, minutes: int) -> list[Transaction]:
-        # Optimización solicitada: construcción directa en list comprehension
-        limit = datetime.utcnow() - timedelta(minutes=minutes)
-        modelos = self.session.execute(
-            select(TransactionModel).where(
-                TransactionModel.account_id == account_id,
-                TransactionModel.created_at >= limit
-            )
-        ).scalars().all()
-        
-        return [
-            Transaction(
-                id=m.id, 
-                account_id=m.account_id, 
-                target_account_id=m.target_account_id,
-                amount=m.amount, 
-                type=m.type, 
-                currency="USD", 
-                created_at=m.created_at, 
-                _status=m.status
-            ) for m in modelos
-        ]
