@@ -1,33 +1,29 @@
-class DomainError(Exception):
-    """Error base de capa de dominio"""
+class BankingError(Exception):
+    """Excepción base para todos los errores del dominio bancario"""
     def __init__(self, message: str):
         self.message = message
         super().__init__(self.message)
 
-class NotFoundError(DomainError):
-    """Lanzada cuando un recurso (cliente, cuenta) no existe"""
+class ValidationError(BankingError):
+    """Error cuando los datos de entrada no cumplen las reglas básicas"""
     pass
 
-class ValidationError(DomainError):
-    """Lanzada para errores de validación de datos (email, nombres cortos)"""
+class InvalidStatusTransition(BankingError):
+    """Error cuando se intenta un cambio de estado prohibido (ej. CLOSED -> ACTIVE)"""
     pass
 
-class InvalidStatusTransition(DomainError):
-    """Lanzada cuando se intenta un cambio de estado no permitido"""
+class InsufficientFundsError(BankingError):
+    """Error cuando la cuenta no tiene balance suficiente para un débito"""
     pass
 
-class InsufficientFundsError(DomainError):
-    """Lanzada cuando el balance no alcanza para la operación"""
+class NotFoundError(BankingError):
+    """Error cuando un recurso (cliente, cuenta, etc.) no existe en el repositorio"""
     pass
 
-class AccountFrozenError(DomainError):
-    """Lanzada si se intenta operar con una cuenta FROZEN"""
+class TransactionRejectedError(BankingError):
+    """Error cuando una transacción falla las reglas de riesgo o fraude"""
     pass
 
-class AccountClosedError(DomainError):
-    """Lanzada si se intenta operar con una cuenta CLOSED"""
-    pass
-
-class TransactionRejectedError(DomainError):
-    """Lanzada cuando fallan las reglas de RiskStrategy """
+class InfrastructureError(BankingError):
+    """Error para problemas técnicos de base de datos o conexión"""
     pass
