@@ -2,7 +2,7 @@ from decimal import Decimal
 from uuid import UUID
 
 from app.domain.entities import Account, Transaction
-from app.domain.enums import TransactionStatus
+from app.domain.enums import TransactionStatus, TransactionType
 from app.domain.exceptions import (
     TransactionRejectedError,
     ValidationError,
@@ -48,7 +48,7 @@ class DepositService:
         account.check_can_operate()
         
         # 3. Crear transacción (PENDING)
-        transaction = TransactionFactory.create_deposit(amount, account_id)
+        transaction = TransactionFactory.get_creator(TransactionType.DEPOSIT).create(amount, account_id)
         self.transaction_repo.add(transaction)
         
         try:
