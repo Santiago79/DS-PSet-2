@@ -1,4 +1,7 @@
+from decimal import Decimal
+
 from app.domain.entities import Account, Transaction
+from app.domain.enums import AccountStatus
 from app.domain.exceptions import NotFoundError
 
 from app.repositories.base import CustomerRepository, AccountRepository, TransactionRepository
@@ -13,7 +16,12 @@ class AccountService:
     def create_account(self, customer_id: str) -> Account:
         if self.customers.get_by_id(customer_id) is None:
             raise NotFoundError("Cliente no encontrado")
-        account = Account(customer_id=customer_id, currency="USD", _balance=0.0)
+        account = Account(
+            customer_id=customer_id,
+            currency="USD",
+            _balance=Decimal("0"),
+            _status=AccountStatus.ACTIVE,
+        )
         self.accounts.add(account)
         return account
 
