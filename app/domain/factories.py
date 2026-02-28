@@ -1,117 +1,60 @@
-from abc import ABC, abstractmethod
+from __future__ import annotations
+from datetime import datetime
 from decimal import Decimal
-from uuid import UUID
+from typing import Optional, Dict, Any
+import uuid
 
 from app.domain.entities import Transaction
 from app.domain.enums import TransactionType, TransactionStatus
-from app.domain.exceptions import ValidationError
 
+class TransferBuilder:
+    def __init__(self):
+        self._reset()
 
-# 1. Clase abstracta (interfaz común)
-class TransactionCreator(ABC):
-    """Clase abstracta para creadores de transacciones.
-    
-    Define el contrato que todas las implementaciones deben seguir.
-    """
-    
-    @abstractmethod
-    def create(self, amount: Decimal, account_id: UUID, **kwargs) -> Transaction:
-        
-        raise NotImplementedError
+    def _reset(self):
+        """Reinicia el estado interno del builder"""
+        self._amount = Decimal("0.0")
+        self._from_account_id: Optional[str] = None
+        self._to_account_id: Optional[str] = None
+        self._fee = Decimal("0.0")
+        self._metadata: Dict[str, Any] = {}
+        self._timestamp = datetime.utcnow()
 
+    def set_basic_info(self, amount: Decimal, from_account: str, to_account: str) -> TransferBuilder:
+        self._amount = amount
+        self._from_account_id = str(from_account)
+        self._to_account_id = str(to_account)
+        return self
 
-# 2. Implementaciones concretas
-class DepositCreator(TransactionCreator):
-    """Creador de transacciones de depósito."""
-    
-    def create(self, amount: Decimal, account_id: UUID, **kwargs) -> Transaction:
-        # Validaciones específicas de depósito
-        if amount <= 0:
-            raise ValidationError("El monto del depósito debe ser mayor a cero")
-        
-        if not account_id:
-            raise ValidationError("Se requiere account_id para un depósito")
-        
-        return Transaction(
-            type=TransactionType.DEPOSIT,
-            amount=float(amount),
-            account_id=str(account_id),
-            target_account_id=None,
-            currency="USD",
-            status=TransactionStatus.PENDING
-        )
+    def apply_fee(self, fee_amount: Decimal) -> TransferBuilder:
+        self._fee = fee_amount
+        # Guardamos el fee en el diccionario de metadata
+        self._metadata["applied_fee"] = str(fee_amount)
+        return self
 
-
-class WithdrawCreator(TransactionCreator):
-    """Creador de transacciones de retiro."""
-    
-    def create(self, amount: Decimal, account_id: UUID, **kwargs) -> Transaction:
-        # Validaciones específicas de retiro
-        if amount <= 0:
-            raise ValidationError("El monto del retiro debe ser mayor a cero")
-        
-        if not account_id:
-            raise ValidationError("Se requiere account_id para un retiro")
-        
-        return Transaction(
-            type=TransactionType.WITHDRAW,
-            amount=float(amount),
-            account_id=str(account_id),
-            target_account_id=None,
-            currency="USD",
-            status=TransactionStatus.PENDING
-        )
-
-
-class TransferCreator(TransactionCreator):
-    """Creador de transacciones de transferencia."""
-    
-    def create(self, amount: Decimal, account_id: UUID, **kwargs) -> Transaction:
-        # Obtener cuenta destino de kwargs
-        target_account_id = kwargs.get('target_account_id')
-        
-        # Validaciones específicas de transferencia
-        if amount <= 0:
-            raise ValidationError("El monto de la transferencia debe ser mayor a cero")
-        
-        if not account_id:
-            raise ValidationError("Se requiere cuenta origen para una transferencia")
-        
-        if not target_account_id:
-            raise ValidationError("Se requiere cuenta destino para una transferencia")
-        
-        if account_id == target_account_id:
-            raise ValidationError("La cuenta origen y destino no pueden ser la misma")
-        
-        return Transaction(
-            type=TransactionType.TRANSFER,
-            amount=float(amount),
-            account_id=str(account_id),
-            target_account_id=str(target_account_id),
-            currency="USD",
-            status=TransactionStatus.PENDING
-        )
-
-
-# 3. Factory Method que retorna la implementación correcta
-class TransactionFactory:
-    """Factory Method que retorna el creador adecuado según el tipo.
-    
-    """
-    
-    @staticmethod
-    def get_creator(transaction_type: TransactionType) -> TransactionCreator:
-        """Retorna el creador apropiado para el tipo de transacción."""
-        creators = {
-            TransactionType.DEPOSIT: DepositCreator(),
-            TransactionType.WITHDRAW: WithdrawCreator(),
-            TransactionType.TRANSFER: TransferCreator(),
+    def add_risk_metadata(self, risk_result: str, risk_message: str) -> TransferBuilder:
+        self._metadata["risk_assessment"] = {
+            "result": risk_result,
+            "message": risk_message,
+            "validated_at": datetime.utcnow().isoformat()
         }
-        
-        creator = creators.get(transaction_type)
-        if not creator:
-            raise ValidationError(f"Tipo de transacción no soportado: {transaction_type}")
-        
-        return creator
-    
-   
+        return self
+
+    def set_timestamps(self) -> TransferBuilder:
+        self._timestamp = datetime.utcnow()
+        return self
+
+    def build(self) -> Transaction:
+        """Crea la transacción final y limpia el builder"""
+        transaction = Transaction(
+            id=str(uuid.uuid4()),
+            account_id=self._from_account_id,
+            target_account_id=self._to_account_id,
+            amount=self._amount,
+            type=TransactionType.TRANSFER,
+            status=TransactionStatus.PENDING,
+            metadata=self._metadata, # Aquí se inyecta el JSON
+            created_at=self._timestamp
+        )
+        self._reset()
+        return transaction
