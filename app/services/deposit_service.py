@@ -60,7 +60,7 @@ class DepositService:
                 is_valid, message = rule.validate(transaction, account, recent)
                 if not is_valid:
                     # Rechazar transacción
-                    transaction.status = TransactionStatus.REJECTED
+                    transaction.transition_to(TransactionStatus.REJECTED)
                     self.transaction_repo.update_status(transaction.id, transaction.status)
                     raise TransactionRejectedError(message)
             
@@ -72,7 +72,7 @@ class DepositService:
             self.account_repo.update(account)
             
             # 8. Aprobar transacción
-            transaction.status = TransactionStatus.APPROVED
+            transaction.transition_to(TransactionStatus.APPROVED)
             self.transaction_repo.update_status(transaction.id, transaction.status)
             
             return transaction
@@ -80,6 +80,6 @@ class DepositService:
         except Exception as e:
             # Si algo falla, aseguramos que la transacción quede REJECTED
             if transaction.status != TransactionStatus.REJECTED:
-                transaction.status = TransactionStatus.REJECTED
+                transaction.transition_to(TransactionStatus.REJECTED)
                 self.transaction_repo.update_status(transaction.id, transaction.status)
             raise e
