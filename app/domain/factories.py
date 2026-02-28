@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 from decimal import Decimal
 from uuid import UUID
 
@@ -6,26 +7,31 @@ from app.domain.enums import TransactionType, TransactionStatus
 from app.domain.exceptions import ValidationError
 
 
-class TransactionFactory:
-    """Fábrica para crear transacciones según su tipo.
+# 1. Clase abstracta (interfaz común)
+class TransactionCreator(ABC):
+    """Clase abstracta para creadores de transacciones.
     
-    Implementa el patrón Factory Method para centralizar la creación
-    y validación de transacciones requerido por el PDF (sección 6.1).
+    Define el contrato que todas las implementaciones deben seguir.
     """
     
-    @staticmethod
-    def create_deposit(amount: Decimal, account_id: UUID) -> Transaction:
-        """Crea una transacción de depósito.
+    @abstractmethod
+    def create(self, amount: Decimal, account_id: UUID, **kwargs) -> Transaction:
+        
+        raise NotImplementedError
+
+
+# 2. Implementaciones concretas
+class DepositCreator(TransactionCreator):
+    """Creador de transacciones de depósito."""
     
-        """
-        # Validaciones 
+    def create(self, amount: Decimal, account_id: UUID, **kwargs) -> Transaction:
+        # Validaciones específicas de depósito
         if amount <= 0:
             raise ValidationError("El monto del depósito debe ser mayor a cero")
         
         if not account_id:
             raise ValidationError("Se requiere account_id para un depósito")
         
-        # Crear transacción usando la entidad existente
         return Transaction(
             type=TransactionType.DEPOSIT,
             amount=float(amount),
@@ -34,19 +40,19 @@ class TransactionFactory:
             currency="USD",
             status=TransactionStatus.PENDING
         )
+
+
+class WithdrawCreator(TransactionCreator):
+    """Creador de transacciones de retiro."""
     
-    @staticmethod
-    def create_withdraw(amount: Decimal, account_id: UUID) -> Transaction:
-        """Crea una transacción de retiro.
-        """
-        # Validaciones
+    def create(self, amount: Decimal, account_id: UUID, **kwargs) -> Transaction:
+        # Validaciones específicas de retiro
         if amount <= 0:
             raise ValidationError("El monto del retiro debe ser mayor a cero")
         
         if not account_id:
             raise ValidationError("Se requiere account_id para un retiro")
         
-        # Crear transacción usando la entidad existente
         return Transaction(
             type=TransactionType.WITHDRAW,
             amount=float(amount),
@@ -55,30 +61,57 @@ class TransactionFactory:
             currency="USD",
             status=TransactionStatus.PENDING
         )
+
+
+class TransferCreator(TransactionCreator):
+    """Creador de transacciones de transferencia."""
     
-    @staticmethod
-    def create_transfer(amount: Decimal, from_account: UUID, to_account: UUID) -> Transaction:
-        """Crea una transacción de transferencia.
-        """
-        # Validaciones 
+    def create(self, amount: Decimal, account_id: UUID, **kwargs) -> Transaction:
+        # Obtener cuenta destino de kwargs
+        target_account_id = kwargs.get('target_account_id')
+        
+        # Validaciones específicas de transferencia
         if amount <= 0:
             raise ValidationError("El monto de la transferencia debe ser mayor a cero")
         
-        if not from_account:
+        if not account_id:
             raise ValidationError("Se requiere cuenta origen para una transferencia")
         
-        if not to_account:
+        if not target_account_id:
             raise ValidationError("Se requiere cuenta destino para una transferencia")
         
-        if from_account == to_account:
+        if account_id == target_account_id:
             raise ValidationError("La cuenta origen y destino no pueden ser la misma")
         
-        # Crear transacción usando la entidad existente
         return Transaction(
             type=TransactionType.TRANSFER,
             amount=float(amount),
-            account_id=str(from_account),  # La cuenta origen va en account_id
-            target_account_id=str(to_account),  # La cuenta destino en target_account_id
+            account_id=str(account_id),
+            target_account_id=str(target_account_id),
             currency="USD",
             status=TransactionStatus.PENDING
         )
+
+
+# 3. Factory Method que retorna la implementación correcta
+class TransactionFactory:
+    """Factory Method que retorna el creador adecuado según el tipo.
+    
+    """
+    
+    @staticmethod
+    def get_creator(transaction_type: TransactionType) -> TransactionCreator:
+        """Retorna el creador apropiado para el tipo de transacción."""
+        creators = {
+            TransactionType.DEPOSIT: DepositCreator(),
+            TransactionType.WITHDRAW: WithdrawCreator(),
+            TransactionType.TRANSFER: TransferCreator(),
+        }
+        
+        creator = creators.get(transaction_type)
+        if not creator:
+            raise ValidationError(f"Tipo de transacción no soportado: {transaction_type}")
+        
+        return creator
+    
+   
