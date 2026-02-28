@@ -3,29 +3,36 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 
-from app.domain.entities import Customer, Account, Transaction, LedgerEntry
+from app.domain.entities import Customer, Account, Transaction
 from app.domain.enums import AccountStatus, TransactionStatus
 from app.domain.exceptions import NotFoundError
-from app.repositories.models import CustomerModel, AccountModel, TransactionModel, LedgerEntryModel
+from app.repositories.models import CustomerModel, AccountModel, TransactionModel
 
 class PostgresCustomerRepo:
     def __init__(self, session: Session) -> None:
         self.session = session
 
     def add(self, customer: Customer) -> None:
+        # Se incluye status al crear el modelo como pidió mecueval
         modelo = CustomerModel(
             id=customer.id,
             name=customer.name,
-            email=customer.email
+            email=customer.email,
+            status=customer.active # Mapeo al campo de estatus del modelo
         )
         self.session.add(modelo)
         self.session.commit()
 
-    def get(self, customer_id: str) -> Customer:
+    def get_by_id(self, customer_id: str) -> Customer:
         modelo = self.session.get(CustomerModel, customer_id)
         if modelo is None:
             raise NotFoundError('Cliente no encontrado')
-        return Customer(id=modelo.id, name=modelo.name, email=modelo.email)
+        return Customer(
+            id=modelo.id, 
+            name=modelo.name, 
+            email=modelo.email, 
+            active=modelo.status
+        )
 
     def get_by_email(self, email: str) -> Customer:
         modelo = self.session.execute(
@@ -33,11 +40,12 @@ class PostgresCustomerRepo:
         ).scalar_one_or_none()
         if modelo is None:
             raise NotFoundError('Cliente con ese email no encontrado')
-        return Customer(id=modelo.id, name=modelo.name, email=modelo.email)
-
-    def list(self) -> list[Customer]:
-        modelos = self.session.execute(select(CustomerModel)).scalars().all()
-        return [Customer(id=m.id, name=m.name, email=m.email) for m in modelos]
+        return Customer(
+            id=modelo.id, 
+            name=modelo.name, 
+            email=modelo.email, 
+            active=modelo.status
+        )
 
 class PostgresAccountRepo:
     def __init__(self, session: Session) -> None:
@@ -54,22 +62,19 @@ class PostgresAccountRepo:
         self.session.add(modelo)
         self.session.commit()
 
-    def get(self, account_id: str) -> Account:
+    def get_by_id(self, account_id: str) -> Account:
         modelo = self.session.get(AccountModel, account_id)
         if modelo is None:
             raise NotFoundError('Cuenta no encontrada')
         
-        dominio = Account(
+        # Reconstrucción de estado inyectando valores a campos privados _
+        return Account(
             id=modelo.id,
             customer_id=modelo.customer_id,
             currency=modelo.currency,
-            _balance=modelo.balance
+            _balance=modelo.balance,
+            _status=modelo.status
         )
-        
-        if modelo.status != AccountStatus.ACTIVE:
-            dominio.transition_to(modelo.status)
-            
-        return dominio
 
     def update(self, account: Account) -> None:
         modelo = self.session.get(AccountModel, account.id)
@@ -79,19 +84,6 @@ class PostgresAccountRepo:
         modelo.balance = account.balance
         modelo.status = account.status
         self.session.commit()
-
-    def list_by_customer(self, customer_id: str) -> list[Account]:
-        modelos = self.session.execute(
-            select(AccountModel).where(AccountModel.customer_id == customer_id)
-        ).scalars().all()
-        
-        cuentas = []
-        for m in modelos:
-            dominio = Account(id=m.id, customer_id=m.customer_id, currency=m.currency, _balance=m.balance)
-            if m.status != AccountStatus.ACTIVE:
-                dominio.transition_to(m.status)
-            cuentas.append(dominio)
-        return cuentas
 
 class PostgresTransactionRepo:
     def __init__(self, session: Session) -> None:
@@ -110,25 +102,21 @@ class PostgresTransactionRepo:
         self.session.add(modelo)
         self.session.commit()
 
-    def get(self, transaction_id: str) -> Transaction:
+    def get_by_id(self, transaction_id: str) -> Transaction:
         modelo = self.session.get(TransactionModel, transaction_id)
         if modelo is None:
             raise NotFoundError('Transacción no encontrada')
         
-        dominio = Transaction(
+        return Transaction(
             id=modelo.id,
             account_id=modelo.account_id,
             target_account_id=modelo.target_account_id,
             amount=modelo.amount,
             type=modelo.type,
             currency="USD",
-            created_at=modelo.created_at
+            created_at=modelo.created_at,
+            _status=modelo.status
         )
-        
-        if modelo.status != TransactionStatus.PENDING:
-            dominio.transition_to(modelo.status)
-            
-        return dominio
 
     def update_status(self, transaction_id: str, status: TransactionStatus) -> None:
         modelo = self.session.get(TransactionModel, transaction_id)
@@ -139,6 +127,7 @@ class PostgresTransactionRepo:
         self.session.commit()
 
     def list_recent(self, account_id: str, minutes: int) -> list[Transaction]:
+        # Optimización solicitada: construcción directa en list comprehension
         limit = datetime.utcnow() - timedelta(minutes=minutes)
         modelos = self.session.execute(
             select(TransactionModel).where(
@@ -147,4 +136,15 @@ class PostgresTransactionRepo:
             )
         ).scalars().all()
         
-        return [self.get(m.id) for m in modelos]
+        return [
+            Transaction(
+                id=m.id, 
+                account_id=m.account_id, 
+                target_account_id=m.target_account_id,
+                amount=m.amount, 
+                type=m.type, 
+                currency="USD", 
+                created_at=m.created_at, 
+                _status=m.status
+            ) for m in modelos
+        ]
