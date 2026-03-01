@@ -16,13 +16,12 @@ class BankingFacade:
         account_repo: AccountRepository,
         transaction_repo: TransactionRepository,
         transfer_service: TransferService,
-        # Inyección de dependencias
     ):
         self.customer_repo = customer_repo
         self.account_repo = account_repo
         self.transaction_repo = transaction_repo
         self.transfer_service = transfer_service
-        self._transfer_builder = TransferBuilder() # Tu Issue #4
+        self._transfer_builder = TransferBuilder()
 
     def create_customer(self, name: str, email: str) -> Customer:
         """Orquesta la creación de un cliente con status ACTIVE"""
@@ -43,14 +42,12 @@ class BankingFacade:
     def transfer(self, from_id: str, to_id: str, amount: float) -> Transaction:
         """Delega en el TransferService usando tu Builder"""
         try:
-            # Traduce tipos simples a dominio (Decimal)
             return self.transfer_service.execute(
                 from_account_id=UUID(from_id),
                 to_account_id=UUID(to_id),
                 amount=Decimal(str(amount))
             )
         except Exception as e:
-            # Traduce excepciones a mensajes amigables
             raise ValidationError(f"Error en transferencia: {str(e)}")
 
     def get_account(self, account_id: str) -> Optional[Account]:
@@ -59,5 +56,4 @@ class BankingFacade:
 
     def list_transactions(self, account_id: str, limit: int = 10, offset: int = 0) -> List[Transaction]:
         """Delega la consulta al repositorio de transacciones"""
-        # Aquí se podría implementar lógica de paginación si el repo lo soporta
         return self.transaction_repo.list_by_account(account_id)[:limit]
