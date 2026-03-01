@@ -4,13 +4,34 @@ services:
     container_name: fintech_db
     restart: always
     environment:
-      POSTGRES_USER: ${DB_USER:-postgres}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
-      POSTGRES_DB: ${DB_NAME:-fintech_db}
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: fintech_db
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data # Persistencia requerida 
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - fintech_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  db-ui:
+    image: dpage/pgadmin4
+    container_name: fintech_pgadmin
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@localhost.com
+      - PGADMIN_DEFAULT_PASSWORD=root
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    ports:
+      - "8085:80"
+    depends_on:
+      db:
+        condition: service_healthy
     networks:
       - fintech_network
 
@@ -20,11 +41,14 @@ services:
       dockerfile: Dockerfile.api
     container_name: fintech_api
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@db:5432/${DB_NAME:-fintech_db}
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/fintech_db
     ports:
       - "8000:8000"
+    volumes:
+      - .:/app
     networks:
       - fintech_network
 
@@ -41,8 +65,9 @@ services:
       - fintech_network
 
 networks:
-  fintech_network: # Red interna para comunicación entre contenedores [cite: 146]
+  fintech_network:
     driver: bridge
 
 volumes:
   postgres_data:
+  pgadmin_data:
