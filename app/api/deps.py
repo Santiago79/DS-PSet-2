@@ -26,9 +26,17 @@ from app.domain.exceptions import (
     InvalidStatusTransition,
     DuplicateEmailError,
 )
+from app.services.configuration_service import ConfigurationService 
+
+_config_service = ConfigurationService()
 
 
-def get_facade(session: Session = Depends(get_db)) -> BankingFacade:
+def get_config_service() -> ConfigurationService:
+    """Dependency para obtener el servicio de configuración (siempre la misma instancia)"""
+    return _config_service
+
+def get_facade(session: Session = Depends(get_db),
+               config_service: ConfigurationService = Depends(get_config_service)) -> BankingFacade:
     """Construye BankingFacade con repos SQL y servicios (fee/risk por defecto)."""
     customer_repo = SQLCustomerRepository(session)
     account_repo = SQLAccountRepository(session)
@@ -67,6 +75,7 @@ def get_facade(session: Session = Depends(get_db)) -> BankingFacade:
         transfer_service=transfer_service,
         deposit_service=deposit_service,
         withdraw_service=withdraw_service,
+        config_service=config_service,  
     )
 
 

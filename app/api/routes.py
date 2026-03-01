@@ -18,6 +18,39 @@ from app.schemas.dto import (
 router = APIRouter()
 
 
+# ENDPOINTS DE CONFIGURACIÓN (NUEVOS)
+@router.get("/config/strategies", tags=["configuración"])
+def get_strategies(
+    facade: BankingFacade = Depends(get_facade),
+):
+    try:
+        return facade.get_config()
+    except Exception as e:
+        raise to_http(e)
+
+@router.post("/config/strategies/fee", tags=["configuración"])
+def set_fee_strategy(
+    fee_type: str,
+    facade: BankingFacade = Depends(get_facade),
+):
+    try:
+        facade.set_fee_strategy(fee_type)
+        return facade.get_config()
+    except Exception as e:
+        raise to_http(e)
+
+
+@router.post("/config/strategies/risk/{rule_name}", tags=["configuración"])
+def set_risk_rule(
+    rule_name: str,
+    enabled: bool,
+    facade: BankingFacade = Depends(get_facade),
+):
+    try:
+        facade.set_risk_rule(rule_name, enabled)
+        return facade.get_config()
+    except Exception as e:
+        raise to_http(e)
 # ---------- Customers ----------
 
 @router.post(
