@@ -24,6 +24,11 @@ class NotFoundError(BankingError):
     """Error cuando un recurso (cliente, cuenta, etc.) no existe en el repositorio"""
     pass
 
+
+class AccountNotOperableError(BankingError):
+    """Error cuando la cuenta está FROZEN o CLOSED y no se puede operar (mapeable a HTTP 403)"""
+    pass
+
 class TransactionRejectedError(BankingError):
     """Error cuando una transacción falla las reglas de riesgo o fraude"""
     pass

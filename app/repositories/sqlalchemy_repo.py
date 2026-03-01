@@ -11,18 +11,18 @@ class SQLCustomerRepository(CustomerRepository):
         self.session = session
 
     def add(self, customer: Customer) -> None:
-        model = CustomerModel(id=customer.id, name=customer.name, email=customer.email, status=customer.status)
+        model = CustomerModel(id=customer.id, name=customer.name, email=customer.email, status=customer.active)
         self.session.add(model)
         self.session.commit()
 
     def get_by_id(self, customer_id: str) -> Optional[Customer]:
         model = self.session.query(CustomerModel).filter_by(id=customer_id).first()
-        return Customer(id=model.id, name=model.name, email=model.email, status=model.status) if model else None
+        return Customer(id=model.id, name=model.name, email=model.email, active=model.status) if model else None
 
     def get_by_email(self, email: str) -> Optional[Customer]:
         """Implementación solicitada por mecueval"""
         model = self.session.query(CustomerModel).filter_by(email=email).first()
-        return Customer(id=model.id, name=model.name, email=model.email, status=model.status) if model else None
+        return Customer(id=model.id, name=model.name, email=model.email, active=model.status) if model else None
 
     def update(self, customer: Customer) -> None:
         """Implementación solicitada por mecueval"""
@@ -30,7 +30,7 @@ class SQLCustomerRepository(CustomerRepository):
         if model:
             model.name = customer.name
             model.email = customer.email
-            model.status = customer.status
+            model.status = customer.active
             self.session.commit()
 
 class SQLAccountRepository(AccountRepository):
@@ -59,6 +59,9 @@ class SQLAccountRepository(AccountRepository):
         models = self.session.query(AccountModel).filter_by(customer_id=customer_id).all()
         return [Account(id=m.id, customer_id=m.customer_id, _balance=m.balance, currency=m.currency, _status=m.status) for m in models]
 
+    def list_by_customer(self, customer_id: str) -> list[Account]:
+        return self.get_by_customer(customer_id)
+
     def update(self, account: Account) -> None:
         model = self.session.query(AccountModel).filter_by(id=account.id).first()
         if model:
@@ -83,9 +86,10 @@ class SQLTransactionRepository(TransactionRepository):
             target_account_id=transaction.target_account_id,
             type=transaction.type,
             amount=transaction.amount,
-            currency=transaction.currency,
+            currency=getattr(transaction, "currency", "USD"),
             status=transaction.status,
-            created_at=transaction.created_at
+            created_at=transaction.created_at,
+            extra_data=getattr(transaction, "metadata", None),
         )
         self.session.add(model)
         self.session.commit()
@@ -95,8 +99,9 @@ class SQLTransactionRepository(TransactionRepository):
         if not model: return None
         return Transaction(
             id=model.id, account_id=model.account_id, target_account_id=model.target_account_id,
-            type=model.type, amount=model.amount, currency=model.currency, 
-            status=model.status, created_at=model.created_at
+            type=model.type, amount=model.amount, currency=getattr(model, "currency", "USD"),
+            _status=model.status, created_at=model.created_at,
+            metadata=getattr(model, "extra_data", None),
         )
 
     def update_status(self, transaction_id: str, status: TransactionStatus) -> None:
@@ -109,9 +114,13 @@ class SQLTransactionRepository(TransactionRepository):
         models = self.session.query(TransactionModel).filter_by(account_id=account_id).all()
         return [Transaction(
             id=m.id, account_id=m.account_id, target_account_id=m.target_account_id,
-            type=m.type, amount=m.amount, currency=m.currency, 
-            status=m.status, created_at=m.created_at
+            type=m.type, amount=m.amount, currency=getattr(m, "currency", "USD"),
+            _status=m.status, created_at=m.created_at,
+            metadata=getattr(m, "extra_data", None),
         ) for m in models]
+
+    def list_by_account(self, account_id: str) -> list[Transaction]:
+        return self.find_by_account(account_id)
 
     def find_recent(self, account_id: str, minutes: int) -> list[Transaction]:
         from datetime import datetime, timedelta
@@ -122,6 +131,10 @@ class SQLTransactionRepository(TransactionRepository):
         ).all()
         return [Transaction(
             id=m.id, account_id=m.account_id, target_account_id=m.target_account_id,
-            type=m.type, amount=m.amount, currency=m.currency, 
-            status=m.status, created_at=m.created_at
+            type=m.type, amount=m.amount, currency=getattr(m, "currency", "USD"),
+            _status=m.status, created_at=m.created_at,
+            metadata=getattr(m, "extra_data", None),
         ) for m in models]
+
+    def list_recent(self, account_id: str, minutes: int) -> list[Transaction]:
+        return self.find_recent(account_id, minutes)

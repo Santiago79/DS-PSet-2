@@ -6,7 +6,7 @@ from decimal import Decimal
 from typing import Optional, Dict, Any
 
 from app.domain.enums import AccountStatus, TransactionStatus, TransactionType, LedgerDirection
-from app.domain.exceptions import InvalidStatusTransition, ValidationError
+from app.domain.exceptions import InvalidStatusTransition, ValidationError, AccountNotOperableError
 
 @dataclass
 class Customer:
@@ -14,6 +14,11 @@ class Customer:
     email: str
     id: str = field(default_factory=lambda: str(uuid4()))
     active: bool = True
+
+    @property
+    def status(self) -> str:
+        """Para compatibilidad con repos y API: 'active' | 'inactive'."""
+        return "active" if self.active else "inactive"
 
     def __post_init__(self) -> None:
         if not self.name or len(self.name.strip()) < 2:
@@ -54,6 +59,13 @@ class Account:
         if self._balance < amount:
             raise ValidationError("Fondos insuficientes para realizar el débito")
         self._balance -= amount
+
+    def check_can_operate(self) -> None:
+        """Verifica que la cuenta esté ACTIVE para permitir operaciones (deposit/withdraw/transfer)."""
+        if self._status != AccountStatus.ACTIVE:
+            raise AccountNotOperableError(
+                f"No se puede operar: la cuenta está {self._status.value}"
+            )
 
     def transition_to(self, new_status: AccountStatus) -> None:
         """

@@ -13,7 +13,7 @@ class PostgresCustomerRepo:
             id=customer.id,
             name=customer.name,
             email=customer.email,
-            status=customer.status # Campo solicitado por mecueval
+            status=customer.active,
         )
         self.session.add(model)
         self.session.commit()
@@ -27,7 +27,7 @@ class PostgresCustomerRepo:
             id=model.id, 
             name=model.name, 
             email=model.email, 
-            status=model.status
+            active=model.status
         )
 
     def get_by_email(self, email: str) -> Optional[Customer]:
@@ -40,7 +40,7 @@ class PostgresCustomerRepo:
             id=model.id, 
             name=model.name, 
             email=model.email, 
-            status=model.status
+            active=model.status
         )
 
 class PostgresAccountRepo:
