@@ -1,10 +1,11 @@
 from decimal import Decimal
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from app.domain.entities import Customer, Account, Transaction
 from app.domain.exceptions import ValidationError, NotFoundError
 from app.repositories.base import CustomerRepository, AccountRepository, TransactionRepository
 
+from app.services.configuration_service import ConfigurationService
 from app.services.transfer_service import TransferService
 from app.services.deposit_service import DepositService
 from app.services.withdraw_service import WithdrawService
@@ -17,7 +18,8 @@ class BankingFacade:
         transaction_repo: TransactionRepository,
         transfer_service: TransferService,
         deposit_service: DepositService, 
-        withdraw_service: WithdrawService 
+        withdraw_service: WithdrawService,
+        config_service: ConfigurationService,
     ):
         self.customer_repo = customer_repo
         self.account_repo = account_repo
@@ -25,6 +27,8 @@ class BankingFacade:
         self.transfer_service = transfer_service
         self.deposit_service = deposit_service
         self.withdraw_service = withdraw_service
+        self.config_service = config_service
+
 
     def create_customer(self, name: str, email: str) -> Customer:
         customer = Customer(name=name, email=email)
@@ -65,3 +69,15 @@ class BankingFacade:
         transactions = self.transaction_repo.list_by_account(account_id)
 
         return transactions[offset : offset + limit]
+    
+    def get_config(self) -> Dict[str, Any]:
+        """Retorna la configuración actual"""
+        return self.config_service.get_full_config()
+    
+    def set_fee_strategy(self, fee_type: str) -> None:
+        """Cambia la estrategia de comisiones"""
+        self.config_service.set_fee_strategy(fee_type)
+    
+    def set_risk_rule(self, rule_name: str, enabled: bool) -> None:
+        """Activa/desactiva una regla de riesgo"""
+        self.config_service.set_risk_rule(rule_name, enabled)
