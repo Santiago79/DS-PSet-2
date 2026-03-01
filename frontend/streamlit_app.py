@@ -14,7 +14,7 @@ st.title("Fintech Mini Bank - Gestion")
 
 # --- NAVEGACION ---
 st.sidebar.header("Menu de Navegacion")
-page = st.sidebar.radio("Seleccione una pagina:", ["Crear Cliente", "Crear Cuenta", "Ver Cuenta"])
+page = st.sidebar.radio("Seleccione una pagina:", ["Crear Cliente", "Crear Cuenta", "Ver Cuenta", "Transacciones", "Historial"])
 
 # --- FUNCIONES DE APOYO (Manejo de errores solicitado) ---
 
@@ -111,3 +111,124 @@ elif page == "Ver Cuenta":
                 col2.metric("Estado", data['status'])
             else:
                 show_error(res)
+
+# PARA EL MANEJO DE TRANSACCIONES
+
+# --- FUNCIÓN PARA ERRORES CRÍTICOS ---
+def parse_business_error(detail):
+    """Mapea errores del backend a mensajes claros segun requerimientos."""
+    
+    # Convertimos a string por si detail es una lista o dict
+    detail_str = str(detail).lower()
+    
+    if "insufficient" in detail_str:
+        return "Fondos insuficientes"
+    if "frozen" in detail_str or "operable" in detail_str or "congelada" in detail_str:
+        return "Cuenta congelada - no puede operar"
+    if "limit" in detail_str or "limite" in detail_str:
+        return "Limite diario excedido"
+    
+    # Si no coincide con ninguno, devuelve el error original limpio
+    return detail
+
+# --- LÓGICA DE LA PÁGINA DE TRANSACCIONES ---
+if page == "Transacciones":
+    st.header("Pagina: Gestion de Transacciones")
+    
+    # Selector de tipo de operacion mediante pestañas
+    tab_dep, tab_wit, tab_tra = st.tabs(["Depositar", "Retirar", "Transferir"])
+
+    # --- PESTAÑA: DEPOSITAR ---
+    with tab_dep:
+        st.subheader("Deposito de Fondos")
+        with st.form("form_deposit"):
+            acc_id = st.text_input("ID de la Cuenta")
+            amount = st.number_input("Monto a depositar", min_value=0.1, step=10.0, key="dep_amount")
+            submit = st.form_submit_button("Ejecutar Deposito")
+        
+        if submit:
+            with st.spinner("Procesando operacion..."):
+                res = call_api("POST", "/transactions/deposit", {"account_id": acc_id, "amount": amount})
+                if res is not None:
+                    if res.status_code == 201:
+                        st.success("Operacion realizada con exito")
+                        st.json(res.json())
+                    else:
+                        
+                        try:
+                            error_data = res.json()
+                            detail = error_data.get("detail", "Error desconocido")
+                            st.error(parse_business_error(detail))
+                        except Exception:
+                            st.error(f"Error {res.status_code}: {res.text}")
+
+    # --- PESTAÑA: RETIRAR ---
+    with tab_wit:
+        st.subheader("Retiro de Fondos")
+        with st.form("form_withdraw"):
+            acc_id = st.text_input("ID de la Cuenta", key="wit_acc")
+            amount = st.number_input("Monto a retirar", min_value=0.1, step=10.0, key="wit_amount")
+            submit = st.form_submit_button("Ejecutar Retiro")
+        
+        if submit:
+            with st.spinner("Procesando operacion..."):
+                res = call_api("POST", "/transactions/withdraw", {"account_id": acc_id, "amount": amount})
+                if res is not None:
+                    if res.status_code == 201:
+                        st.success("Operacion realizada con exito")
+                        st.json(res.json())
+                    else:
+                        
+                        try:
+                            error_data = res.json()
+                            detail = error_data.get("detail", "Error desconocido")
+                            st.error(parse_business_error(detail))
+                        except Exception:
+                            st.error(f"Error {res.status_code}: {res.text}")
+
+    # --- PESTAÑA: TRANSFERIR ---
+    with tab_tra:
+        st.subheader("Transferencia entre Cuentas")
+        with st.form("form_transfer"):
+            origin = st.text_input("ID Cuenta Origen")
+            destination = st.text_input("ID Cuenta Destino")
+            amount = st.number_input("Monto a transferir", min_value=0.1, step=10.0, key="tra_amount")
+            submit = st.form_submit_button("Ejecutar Transferencia")
+        
+        if submit:
+            if origin == destination:
+                st.warning("La cuenta de origen y destino no pueden ser la misma")
+            else:
+                with st.spinner("Procesando transferencia..."):
+                    payload = {"from_account_id": origin, "to_account_id": destination, "amount": amount}
+                    res = call_api("POST", "/transactions/transfer", payload)
+                    if res is not None:
+                        if res.status_code == 201:
+                            st.success("Operacion realizada con exito")
+                            st.json(res.json())
+                        else:
+                            
+                            try:
+                                error_data = res.json()
+                                detail = error_data.get("detail", "Error desconocido")
+                                st.error(parse_business_error(detail))
+                            except Exception:
+                                st.error(f"Error {res.status_code}: {res.text}")
+
+# --- PÁGINA: HISTORIAL ---
+elif page == "Historial":
+    st.header("Pagina: Historial de Movimientos")
+    acc_id = st.text_input("Ingrese el ID de la cuenta")
+    
+    if acc_id:
+        with st.spinner("Buscando transacciones..."):
+            res = call_api("GET", f"/accounts/{acc_id}/transactions")
+            if res is not None:
+                if res.status_code == 200:
+                    txs = res.json()
+                    if txs:
+                        st.table(txs)
+                    else:
+                        st.info("No se registraron movimientos para esta cuenta")
+                elif res:
+                    show_error(res)
