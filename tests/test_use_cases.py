@@ -12,7 +12,7 @@ from app.services.account_service import AccountService
 
 # CustomerService
 
-def test_create_customer_ok_persiste_con_status_active():
+def test_create_customer_persists_with_active_status():
     repo = MagicMock()
     repo.get_by_email.return_value = None
     svc = CustomerService(repo)
@@ -25,7 +25,7 @@ def test_create_customer_ok_persiste_con_status_active():
     repo.add.assert_called_once()
     assert repo.add.call_args[0][0] is customer
 
-def test_create_customer_email_duplicado_lanza_duplicate_email():
+def test_create_customer_duplicate_email_raises_error():
     repo = MagicMock()
     repo.get_by_email.return_value = Customer(name="Otro", email="juan@example.com", id="id-1", active=True)
     svc = CustomerService(repo)
@@ -33,7 +33,7 @@ def test_create_customer_email_duplicado_lanza_duplicate_email():
         svc.create_customer("Juan", "juan@example.com")
     repo.add.assert_not_called()
 
-def test_create_customer_normaliza_email_minusculas():
+def test_create_customer_normalizes_email_to_lowercase():
     repo = MagicMock()
     repo.get_by_email.return_value = None
     svc = CustomerService(repo)
@@ -43,7 +43,7 @@ def test_create_customer_normaliza_email_minusculas():
 
 # AccountService
 
-def test_create_account_ok_balance_cero_usd():
+def test_create_account_initial_balance_zero_usd():
     customer = Customer(name="Juan", email="j@x.com", id="cust-1", active=True)
     customers = MagicMock()
     customers.get_by_id.return_value = customer
@@ -57,7 +57,7 @@ def test_create_account_ok_balance_cero_usd():
     accounts.add.assert_called_once()
     assert accounts.add.call_args[0][0] is account
 
-def test_create_account_cliente_no_existe_lanza_not_found():
+def test_create_account_nonexistent_customer_raises_not_found():
     customers = MagicMock()
     customers.get_by_id.return_value = None
     accounts = MagicMock()
@@ -66,7 +66,7 @@ def test_create_account_cliente_no_existe_lanza_not_found():
         svc.create_account("cust-inexistente")
     accounts.add.assert_not_called()
 
-def test_get_account_ok_retorna_cuenta_con_saldo():
+def test_get_account_returns_account_with_balance():
     account = Account(customer_id="c1", currency="USD", id="acc-1", _balance=100.5)
     accounts = MagicMock()
     accounts.get_by_id.return_value = account
@@ -76,14 +76,14 @@ def test_get_account_ok_retorna_cuenta_con_saldo():
     assert result.balance == 100.5
     accounts.get_by_id.assert_called_once_with("acc-1")
 
-def test_get_account_no_existe_lanza_not_found():
+def test_get_account_nonexistent_raises_not_found():
     accounts = MagicMock()
     accounts.get_by_id.return_value = None
     svc = AccountService(MagicMock(), accounts, MagicMock())
     with pytest.raises(NotFoundError):
         svc.get_account("acc-inexistente")
 
-def test_list_transactions_paginado_retorna_slice():
+def test_list_transactions_returns_paginated_slice():
     t1 = Transaction(type=TransactionType.DEPOSIT, amount=10.0, account_id="acc-1", currency="USD", created_at=datetime(2025, 1, 1))
     t2 = Transaction(type=TransactionType.WITHDRAWAL, amount=5.0, account_id="acc-1", currency="USD", created_at=datetime(2025, 1, 2))
     t3 = Transaction(type=TransactionType.DEPOSIT, amount=20.0, account_id="acc-1", currency="USD", created_at=datetime(2025, 1, 3))
@@ -96,7 +96,7 @@ def test_list_transactions_paginado_retorna_slice():
     assert page[1].amount == 5.0
     transactions.list_by_account.assert_called_once_with("acc-1")
 
-def test_list_transactions_offset_limit():
+def test_list_transactions_respects_offset_and_limit():
     t1 = Transaction(type=TransactionType.DEPOSIT, amount=1.0, account_id="acc-1", currency="USD", created_at=datetime(2025, 1, 1))
     t2 = Transaction(type=TransactionType.DEPOSIT, amount=2.0, account_id="acc-1", currency="USD", created_at=datetime(2025, 1, 2))
     t3 = Transaction(type=TransactionType.DEPOSIT, amount=3.0, account_id="acc-1", currency="USD", created_at=datetime(2025, 1, 3))
@@ -107,7 +107,7 @@ def test_list_transactions_offset_limit():
     assert len(page) == 1
     assert page[0].amount == 2.0
 
-def test_list_transactions_vacio():
+def test_list_transactions_empty():
     transactions = MagicMock()
     transactions.list_by_account.return_value = []
     svc = AccountService(MagicMock(), MagicMock(), transactions)
