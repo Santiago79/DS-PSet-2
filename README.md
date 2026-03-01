@@ -150,6 +150,7 @@ Crea objetos `Transaction` según el tipo:
     
 
 También valida los campos requeridos para cada tipo.
+Lo utilizamos para transacciones de DEPÓSITO y RETIRO (transacciones simples)
 
 **Por qué:**
 
@@ -163,6 +164,7 @@ También valida los campos requeridos para cada tipo.
 ----------
 
 ### 2. Builder – `TransactionBuilder / TransferBuilder`
+
 
 Se utiliza para construir transacciones complejas con múltiples atributos:
 
@@ -179,7 +181,8 @@ Se utiliza para construir transacciones complejas con múltiples atributos:
 -   Timestamp
     
 -   Metadata adicional
-    
+
+En este caso EXCLUSIVAMENTE para TRANSFERENCIAS, donde se necesita metadata adicional (fee y resultados de riesgo)
 
 **Por qué:**
 
