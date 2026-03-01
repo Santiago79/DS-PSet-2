@@ -34,11 +34,11 @@ class DepositCreator(TransactionCreator):
         
         return Transaction(
             type=TransactionType.DEPOSIT,
-            amount=float(amount),
+            amount=Decimal(str(amount)),
             account_id=str(account_id),
             target_account_id=None,
             currency="USD",
-            status=TransactionStatus.PENDING
+            _status=TransactionStatus.PENDING
         )
 
 
@@ -54,12 +54,12 @@ class WithdrawCreator(TransactionCreator):
             raise ValidationError("Se requiere account_id para un retiro")
         
         return Transaction(
-            type=TransactionType.WITHDRAW,
-            amount=float(amount),
+            type=TransactionType.WITHDRAWAL,
+            amount=Decimal(str(amount)),
             account_id=str(account_id),
             target_account_id=None,
             currency="USD",
-            status=TransactionStatus.PENDING
+            _status=TransactionStatus.PENDING
         )
 
 
@@ -85,11 +85,11 @@ class TransferCreator(TransactionCreator):
         
         return Transaction(
             type=TransactionType.TRANSFER,
-            amount=float(amount),
+            amount=Decimal(str(amount)),
             account_id=str(account_id),
             target_account_id=str(target_account_id),
             currency="USD",
-            status=TransactionStatus.PENDING
+            _status=TransactionStatus.PENDING
         )
 
 
@@ -104,7 +104,7 @@ class TransactionFactory:
         """Retorna el creador apropiado para el tipo de transacción."""
         creators = {
             TransactionType.DEPOSIT: DepositCreator(),
-            TransactionType.WITHDRAW: WithdrawCreator(),
+            TransactionType.WITHDRAWAL: WithdrawCreator(),
             TransactionType.TRANSFER: TransferCreator(),
         }
         

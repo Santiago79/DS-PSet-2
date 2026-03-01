@@ -47,7 +47,7 @@ class WithdrawService:
         account.check_can_operate()
         
         # 3. Crear transacción (PENDING)
-        transaction = TransactionFactory.get_creator(TransactionType.WITHDRAW).create(amount, account_id)
+        transaction = TransactionFactory.get_creator(TransactionType.WITHDRAWAL).create(amount, account_id)
         self.transaction_repo.add(transaction)
         
         try:
