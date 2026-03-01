@@ -9,7 +9,7 @@ from app.domain.enums import TransactionType, TransactionStatus
 
 class TransferBuilder:
     """
-    BUILDER - Estilo Profe
+    
     Permite construir una transferencia con metadatos de riesgo y comisiones.
     """
 
