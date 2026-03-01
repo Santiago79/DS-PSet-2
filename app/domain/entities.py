@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from uuid import uuid4
 from decimal import Decimal
+from typing import Optional, Dict, Any
 
 from app.domain.enums import AccountStatus, TransactionStatus, TransactionType, LedgerDirection
 from app.domain.exceptions import InvalidStatusTransition, ValidationError
@@ -56,7 +57,7 @@ class Account:
 
     def transition_to(self, new_status: AccountStatus) -> None:
         """
-        Lógica de transición de estados del banco (Estilo Naunay).
+        Lógica de transición de estados del banco.
         Define qué cambios de estado son legales.
         """
         allowed = {
@@ -85,6 +86,8 @@ class Transaction:
     created_at: datetime = field(default_factory=datetime.utcnow)
     id: str = field(default_factory=lambda: str(uuid4()))
     _status: TransactionStatus = field(default=TransactionStatus.PENDING)
+    # CAMBIO PEDIDO: Agregado campo metadata para soportar el Builder
+    metadata: Optional[Dict[str, Any]] = field(default=None)
 
     def __post_init__(self) -> None:
         if self.amount <= 0:

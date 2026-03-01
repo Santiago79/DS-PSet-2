@@ -113,5 +113,3 @@ class TransactionFactory:
             raise ValidationError(f"Tipo de transacción no soportado: {transaction_type}")
         
         return creator
-    
-   
