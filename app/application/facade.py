@@ -1,8 +1,8 @@
 from decimal import Decimal
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from app.domain.entities import Customer, Account, Transaction
-from app.domain.exceptions import ValidationError, NotFoundError
+from app.domain.exceptions import ValidationError, NotFoundError, BankingError
 from app.repositories.base import CustomerRepository, AccountRepository, TransactionRepository
 
 from app.services.configuration_service import ConfigurationService
@@ -47,18 +47,28 @@ class BankingFacade:
     def deposit(self, account_id: str, amount: Decimal) -> Transaction:
         try:
             return self.deposit_service.execute(account_id, amount)
+        except BankingError:
+            # Errores de dominio (risk, cuenta no operable, fondos, etc.) se propagan
+            # para que la capa API los pueda mapear correctamente a HTTP (400/403/404)
+            raise
         except Exception as e:
             raise ValidationError(f"Error en depósito: {str(e)}")
 
     def withdraw(self, account_id: str, amount: Decimal) -> Transaction:
         try:
             return self.withdraw_service.execute(account_id, amount)
+        except BankingError:
+            # Mantener errores de dominio para un mapeo HTTP consistente
+            raise
         except Exception as e:
             raise ValidationError(f"Error en retiro: {str(e)}")
 
     def transfer(self, from_account: str, to_account: str, amount: Decimal) -> Transaction:
         try:
             return self.transfer_service.execute(from_account, to_account, amount)
+        except BankingError:
+            # Mantener errores de dominio para un mapeo HTTP consistente
+            raise
         except Exception as e:
             raise ValidationError(f"Error en transferencia: {str(e)}")
 
