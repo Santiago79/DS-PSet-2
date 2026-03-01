@@ -1,54 +1,68 @@
 from __future__ import annotations
 from datetime import datetime
 from decimal import Decimal
-from typing import Optional, Dict, Any
-import uuid
+from typing import Optional, Any
+from uuid import uuid4
 
 from app.domain.entities import Transaction
 from app.domain.enums import TransactionType, TransactionStatus
 
 class TransferBuilder:
-    def __init__(self):
-        self._reset()
+    """
+    BUILDER - Estilo Profe
+    Permite construir una transferencia con metadatos de riesgo y comisiones.
+    """
 
-    def _reset(self):
-        self._amount = Decimal("0.0")
-        self._from_account_id = None
-        self._to_account_id = None
-        self._metadata = {}
-        self._timestamp = datetime.utcnow()
+    def __init__(self) -> None:
+        # Defaults razonables
+        self._account_id: str = ""
+        self._target_account_id: Optional[str] = None
+        self._amount: Decimal = Decimal("0.0")
+        self._currency: str = "USD"
+        self._metadata: dict[str, Any] = {}
+        self._created_at: datetime = datetime.utcnow()
 
-    def set_basic_info(self, amount: Decimal, from_account: str, to_account: str) -> TransferBuilder:
-        self._amount = amount
-        self._from_account_id = str(from_account)
-        self._to_account_id = str(to_account)
+    def from_account(self, value: str) -> "TransferBuilder":
+        self._account_id = value
         return self
 
-    def apply_fee(self, fee_amount: Decimal) -> TransferBuilder:
+    def to_account(self, value: str) -> "TransferBuilder":
+        self._target_account_id = value
+        return self
+
+    def amount(self, value: Decimal) -> "TransferBuilder":
+        self._amount = value
+        return self
+
+    def currency(self, value: str) -> "TransferBuilder":
+        self._currency = value
+        return self
+
+    def with_fee(self, fee_amount: Decimal) -> "TransferBuilder":
         self._metadata["applied_fee"] = str(fee_amount)
         return self
 
-    def add_risk_metadata(self, risk_result: str, risk_message: str) -> TransferBuilder:
+    def with_risk_assessment(self, result: str, message: str) -> "TransferBuilder":
         self._metadata["risk_assessment"] = {
-            "result": risk_result,
-            "message": risk_message
+            "result": result,
+            "message": message,
+            "validated_at": datetime.utcnow().isoformat()
         }
         return self
 
-    def set_timestamps(self) -> TransferBuilder:
-        self._timestamp = datetime.utcnow()
+    def created_at(self, value: datetime) -> "TransferBuilder":
+        self._created_at = value
         return self
 
     def build(self) -> Transaction:
-        transaction = Transaction(
-            id=str(uuid.uuid4()),
-            account_id=self._from_account_id,
-            target_account_id=self._to_account_id,
+        # Retorna el producto final (Transaction) inyectando la metadata
+        return Transaction(
+            account_id=self._account_id,
+            target_account_id=self._target_account_id,
             amount=self._amount,
             type=TransactionType.TRANSFER,
-            status=TransactionStatus.PENDING,
-            metadata=self._metadata, # Sincronizado con entities.py
-            created_at=self._timestamp
+            currency=self._currency,
+            created_at=self._created_at,
+            id=str(uuid4()),
+            metadata=dict(self._metadata)
         )
-        self._reset()
-        return transaction
