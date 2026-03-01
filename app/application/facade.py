@@ -1,5 +1,5 @@
 from decimal import Decimal
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from app.domain.entities import Customer, Account, Transaction
 from app.domain.exceptions import ValidationError, NotFoundError
