@@ -18,7 +18,8 @@ from app.schemas.dto import (
 router = APIRouter()
 
 
-# ENDPOINTS DE CONFIGURACIÓN (NUEVOS)
+ # Configuration Endpoints
+
 @router.get("/config/strategies", tags=["configuración"])
 def get_strategies(
     facade: BankingFacade = Depends(get_facade),
@@ -51,7 +52,9 @@ def set_risk_rule(
         return facade.get_config()
     except Exception as e:
         raise to_http(e)
-# ---------- Customers ----------
+
+
+# Customers Endpoints
 
 @router.post(
     "/customers",
@@ -76,7 +79,7 @@ def create_customer(
         raise to_http(e)
 
 
-# ---------- Accounts ----------
+# Accounts Endpoints
 
 @router.post(
     "/accounts",
@@ -127,7 +130,7 @@ def get_account(
         raise to_http(e)
 
 
-# ---------- Transactions ----------
+# Transactions Endpoints
 
 @router.post(
     "/transactions/deposit",
