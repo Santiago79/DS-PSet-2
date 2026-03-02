@@ -59,6 +59,8 @@ services:
     container_name: fintech_ui
     depends_on:
       - api
+    environment:
+      - API_URL=http://api:8000
     ports:
       - "8501:8501"
     networks:
