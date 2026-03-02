@@ -14,7 +14,3 @@ class TransactionType(str, Enum):
     DEPOSIT = "DEPOSIT"
     WITHDRAWAL = "WITHDRAWAL"
     TRANSFER = "TRANSFER"
-
-class LedgerDirection(str, Enum):
-    DEBIT = "DEBIT"
-    CREDIT = "CREDIT"

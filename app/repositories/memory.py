@@ -1,7 +1,7 @@
 from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict
-from app.domain.entities import Customer, Account, Transaction, LedgerEntry
+from app.domain.entities import Customer, Account, Transaction
 from app.domain.enums import TransactionStatus
 
 class InMemoryCustomerRepo:
@@ -68,13 +68,3 @@ class InMemoryTransactionRepo:
         limit = datetime.utcnow() - timedelta(minutes=minutes)
         return [t for t in self._data.values() 
                 if t.account_id == account_id and t.created_at >= limit]
-
-class InMemoryLedgerRepo:
-    def __init__(self) -> None:
-        self._data: Dict[str, LedgerEntry] = {}
-
-    def add(self, entry: LedgerEntry) -> None:
-        self._data[entry.id] = entry
-
-    def list_by_transaction(self, transaction_id: str) -> List[LedgerEntry]:
-        return [e for e in self._data.values() if e.transaction_id == transaction_id]
