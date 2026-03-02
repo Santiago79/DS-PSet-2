@@ -5,7 +5,7 @@ from uuid import uuid4
 from decimal import Decimal
 from typing import Optional, Dict, Any
 
-from app.domain.enums import AccountStatus, TransactionStatus, TransactionType, LedgerDirection
+from app.domain.enums import AccountStatus, TransactionStatus, TransactionType
 from app.domain.exceptions import InvalidStatusTransition, ValidationError, AccountNotOperableError
 
 @dataclass
@@ -126,12 +126,3 @@ class Transaction:
             )
         
         self._status = new_status
-
-@dataclass
-class LedgerEntry:
-    account_id: str
-    transaction_id: str
-    direction: LedgerDirection
-    amount: Decimal
-    id: str = field(default_factory=lambda: str(uuid4()))
-    created_at: datetime = field(default_factory=datetime.utcnow)
