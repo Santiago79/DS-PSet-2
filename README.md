@@ -1,4 +1,5 @@
-# Fintech Mini Bank
+# Fintech Mini Bank - PSet 02
+# Integrantes: Maria Emilia Cueva, Santiago Reategui, Raymond Portilla, Liam Huang
 
 Sistema fintech que permite crear clientes, cuentas y realizar transacciones (depósito, retiro y transferencia).  
 El proyecto sigue una arquitectura hexagonal con API, frontend y base de datos en contenedores.
@@ -139,8 +140,7 @@ Request:
 Crea una cuenta para un cliente.
 
 {
-  "customer_id": 1,
-  "currency": "USD"
+  "customer_id": 1
 }
 
 #### GET /accounts/{account_id}
@@ -222,6 +222,37 @@ Todos los endpoints llaman a:
 Centraliza la lógica de entrada y simplifica la capa de aplicación.
 
 ----------
+## Reglas de negocio configurables
+
+### Estrategias de comisión (`FeeStrategy`)
+
+Se aplican en cada transacción y son configurables desde el frontend.
+
+| Estrategia | Cálculo | Descripción |
+|------------|---------|-------------|
+| `NoFeeStrategy` | $0 | Sin comisión |
+| `FlatFeeStrategy` | $0.50 | Comisión fija por transacción |
+| `PercentFeeStrategy` | 1.5% del monto | Comisión porcentual |
+| `TieredFeeStrategy` | 1% (<$100) / 2% (≥$100) | Comisión por rangos |
+
+### Estrategias de riesgo (`RiskStrategy`)
+
+Se evalúan **antes de aprobar** cualquier transacción. Pueden activarse o desactivarse individualmente.
+
+| Regla | Comportamiento | Se rechaza cuando... |
+|-------|----------------|----------------------|
+| `MaxAmountRule` | Límite por transacción | Monto > $1000 |
+| `VelocityRule` | Límite de frecuencia | >5 transacciones en 10 minutos |
+| `DailyLimitRule` | Límite diario | Suma del día > $2000 |
+
+#### Flujo de validación:
+
+1. Obtener cuentas
+2. Calcular comisión según estrategia activa
+3. Verificar fondos suficientes (monto + comisión)
+4. Aplicar **todas** las reglas de riesgo activas
+   - Si alguna falla → Transacción **RECHAZADA** con mensaje claro
+5. Si todas pasan → Ejecutar operación y persistir
 
 ## Patrones Creacionales
 
@@ -250,7 +281,7 @@ Lo utilizamos para transacciones de DEPÓSITO y RETIRO (transacciones simples)
 
 ----------
 
-### 2. Builder – `TransactionBuilder / TransferBuilder`
+### 2. Builder – `TransferBuilder`
 
 
 Se utiliza para construir transacciones complejas con múltiples atributos:
