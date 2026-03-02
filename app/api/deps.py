@@ -14,6 +14,8 @@ from app.repositories.sqlalchemy_repo import (
 from app.services.deposit_service import DepositService
 from app.services.withdraw_service import WithdrawService
 from app.services.transfer_service import TransferService
+from app.services.customer_service import CustomerService
+from app.services.account_service import AccountService
 from app.services.fee_strategies import NoFeeStrategy
 from app.services.risk_strategies import MaxAmountRule, VelocityRule, DailyLimitRule
 from app.domain.exceptions import (
@@ -37,10 +39,18 @@ def get_config_service() -> ConfigurationService:
 
 def get_facade(session: Session = Depends(get_db),
                config_service: ConfigurationService = Depends(get_config_service)) -> BankingFacade:
-    """Construye BankingFacade con repos SQL y servicios (fee/risk por defecto)."""
+    
     customer_repo = SQLCustomerRepository(session)
     account_repo = SQLAccountRepository(session)
     transaction_repo = SQLTransactionRepository(session)
+
+    customer_service = CustomerService(customer_repo)
+    
+    account_service = AccountService(
+        customers=customer_repo, 
+        accounts=account_repo, 
+        transactions=transaction_repo
+    )
 
     fee_strategy = NoFeeStrategy()
     risk_strategies = [
@@ -75,7 +85,9 @@ def get_facade(session: Session = Depends(get_db),
         transfer_service=transfer_service,
         deposit_service=deposit_service,
         withdraw_service=withdraw_service,
-        config_service=config_service,  
+        config_service=config_service,
+        customer_service=customer_service,
+        account_service=account_service,
     )
 
 

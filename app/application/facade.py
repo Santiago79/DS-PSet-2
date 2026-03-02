@@ -6,6 +6,8 @@ from app.domain.exceptions import ValidationError, NotFoundError, BankingError
 from app.repositories.base import CustomerRepository, AccountRepository, TransactionRepository
 
 from app.services.configuration_service import ConfigurationService
+from app.services.account_service import AccountService
+from app.services.customer_service import CustomerService
 from app.services.transfer_service import TransferService
 from app.services.deposit_service import DepositService
 from app.services.withdraw_service import WithdrawService
@@ -20,6 +22,8 @@ class BankingFacade:
         deposit_service: DepositService, 
         withdraw_service: WithdrawService,
         config_service: ConfigurationService,
+        customer_service: CustomerService,
+        account_service: AccountService,
     ):
         self.customer_repo = customer_repo
         self.account_repo = account_repo
@@ -28,21 +32,17 @@ class BankingFacade:
         self.deposit_service = deposit_service
         self.withdraw_service = withdraw_service
         self.config_service = config_service
+        self.customer_service = customer_service
+        self.account_service = account_service
 
 
     def create_customer(self, name: str, email: str) -> Customer:
-        customer = Customer(name=name, email=email)
-        self.customer_repo.add(customer)
-        return customer
+        # El servicio se encargará de validar el email y lanzar DuplicateEmailError
+        return self.customer_service.create_customer(name=name, email=email)
 
     def create_account(self, customer_id: str, currency: str = "USD") -> Account:
-        customer = self.customer_repo.get_by_id(customer_id)
-        if not customer:
-            raise NotFoundError(f"Cliente {customer_id} no encontrado")
-        
-        account = Account(customer_id=customer_id, currency=currency)
-        self.account_repo.add(account)
-        return account
+        # Esto retorna y sale de la función inmediatamente
+        return self.account_service.create_account(customer_id, currency)
 
     def deposit(self, account_id: str, amount: Decimal) -> Transaction:
         try:
@@ -73,12 +73,10 @@ class BankingFacade:
             raise ValidationError(f"Error en transferencia: {str(e)}")
 
     def get_account(self, account_id: str) -> Optional[Account]:
-        return self.account_repo.get_by_id(account_id)
+        return self.account_service.get_account(account_id)
 
     def list_transactions(self, account_id: str, limit: int = 10, offset: int = 0) -> List[Transaction]:
-        transactions = self.transaction_repo.list_by_account(account_id)
-
-        return transactions[offset : offset + limit]
+        return self.account_service.list_transactions(account_id, limit, offset)
     
     def get_config(self) -> Dict[str, Any]:
         """Retorna la configuración actual"""
