@@ -42,7 +42,7 @@ class BankingFacade:
 
     def create_account(self, customer_id: str, currency: str = "USD") -> Account:
         # Esto retorna y sale de la función inmediatamente
-        return self.account_service.create_account(customer_id, currency)
+        return self.account_service.create_account(customer_id)
 
     def deposit(self, account_id: str, amount: Decimal) -> Transaction:
         try:
