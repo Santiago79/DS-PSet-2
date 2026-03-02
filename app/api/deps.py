@@ -42,12 +42,8 @@ def get_facade(session: Session = Depends(get_db),
     account_repo = SQLAccountRepository(session)
     transaction_repo = SQLTransactionRepository(session)
 
-    fee_strategy = NoFeeStrategy()
-    risk_strategies = [
-        MaxAmountRule(),
-        VelocityRule(max_transactions=5, time_window_minutes=10),
-        DailyLimitRule(daily_limit=Decimal("2000")),
-    ]
+    fee_strategy = config_service.get_current_fee_strategy()  
+    risk_strategies = config_service.get_current_risk_strategies()  
 
     deposit_service = DepositService(
         account_repo=account_repo,
