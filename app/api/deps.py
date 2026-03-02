@@ -44,6 +44,16 @@ def get_facade(session: Session = Depends(get_db),
     account_repo = SQLAccountRepository(session)
     transaction_repo = SQLTransactionRepository(session)
 
+
+    customer_service = CustomerService(customer_repo)
+    
+    account_service = AccountService(
+        customers=customer_repo, 
+        accounts=account_repo, 
+        transactions=transaction_repo
+    )
+
+    
     fee_strategy = config_service.get_current_fee_strategy()  
     risk_strategies = config_service.get_current_risk_strategies()  
 

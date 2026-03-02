@@ -5,7 +5,7 @@ import os
 # --- CONFIGURACION ---
 st.set_page_config(page_title="Fintech Mini Bank", layout="wide")
 
-API_URL = os.getenv("API_URL", "http://api:8000")
+API_URL = os.getenv("API_URL", "http://localhost:8000")
 TIMEOUT = 5
 
 # --- ESTILOS ---
@@ -230,65 +230,65 @@ elif page == "Historial":
 
 # --- PAGINA: CONFIGURACION DE ESTRATEGIAS ---
 
+# --- PAGINA: CONFIGURACION DE ESTRATEGIAS ---
+
 elif page == "Configuracion":
     st.header("Configuracion de Estrategias")
     
-    res = call_api("GET", "/config/strategies")
-    if res and res.status_code == 200:
+    with st.spinner("Consultando configuracion activa..."):
+        res = call_api("GET", "/config/strategies")
+    
+    if res is not None and res.status_code == 200:
         config = res.json()
         
         tab_fee, tab_risk = st.tabs(["Comisiones (Fee)", "Reglas de Riesgo"])
         
         with tab_fee:
             opciones = ["no", "flat", "percent", "tiered"]
-            index_actual = opciones.index(config["fee"])
+            # Verificación de seguridad por si la API manda un valor inesperado
+            current_fee = config.get("fee", "no")
+            idx = opciones.index(current_fee) if current_fee in opciones else 0
             
             fee_selection = st.radio(
                 "Seleccione el tipo de comision:",
                 options=opciones,
-                index=index_actual,
+                index=idx,
                 format_func=lambda x: {
                     "no": "Sin comision",
                     "flat": "Fija ($0.50)",
                     "percent": "Porcentual (1.5%)",
                     "tiered": "Rangos"
-                }[x],
+                }.get(x, x),
                 key="radio_estrategia"
             )
 
-            if fee_selection != config["fee"]:
-                with st.spinner("Sincronizando..."):
-                    update_res = call_api("POST", f"/config/strategies/fee?fee_type={fee_selection}")
-                    if update_res and update_res.status_code == 200:
-                        st.success(f"Configuración actualizada a {fee_selection}")
-                        st.rerun()
+            if fee_selection != current_fee:
+                update_res = call_api("POST", f"/config/strategies/fee?fee_type={fee_selection}")
+                if update_res and update_res.status_code == 200:
+                    st.success(f"Configuración actualizada a {fee_selection}")
+                    st.rerun()
 
         with tab_risk:
             st.subheader("Reglas de Riesgo")
-            risk = config["risk"]
+            risk = config.get("risk", {})
             
-            # Max Amount
-            c1, c2 = st.columns([3, 1])
-            max_en = c2.toggle("Activar", value=risk["max_amount"], key="t_max")
-            c1.markdown("**Maximo Monto** (Limite $1000)")
-            if max_en != risk["max_amount"]:
-                call_api("POST", f"/config/strategies/risk/max_amount?enabled={str(max_en).lower()}")
-                st.rerun()
+            # Función auxiliar para evitar repetir código en los toggles
+            def draw_risk_toggle(label, key, api_path):
+                c1, c2 = st.columns([3, 1])
+                current_val = risk.get(key, False)
+                enabled = c2.toggle("Activar", value=current_val, key=f"t_{key}")
+                c1.markdown(label)
+                if enabled != current_val:
+                    call_api("POST", f"/config/strategies/risk/{api_path}?enabled={str(enabled).lower()}")
+                    st.rerun()
 
-            # Velocity
-            c1, c2 = st.columns([3, 1])
-            vel_en = c2.toggle("Activar", value=risk["velocity"], key="t_vel")
-            c1.markdown("**Limite de Velocidad** (5 tx / 10min)")
-            if vel_en != risk["velocity"]:
-                call_api("POST", f"/config/strategies/risk/velocity?enabled={str(vel_en).lower()}")
-                st.rerun()
-
-            # Daily Limit
-            c1, c2 = st.columns([3, 1])
-            day_en = c2.toggle("Activar", value=risk["daily_limit"], key="t_day")
-            c1.markdown("**Limite Diario** (Acumulado $2000)")
-            if day_en != risk["daily_limit"]:
-                call_api("POST", f"/config/strategies/risk/daily_limit?enabled={str(day_en).lower()}")
-                st.rerun()
+            draw_risk_toggle("**Maximo Monto** (Limite $1000)", "max_amount", "max_amount")
+            draw_risk_toggle("**Limite de Velocidad** (5 tx / 10min)", "velocity", "velocity")
+            draw_risk_toggle("**Limite Diario** (Acumulado $2000)", "daily_limit", "daily_limit")
+            
+    elif res is not None:
+        st.error(f"La API respondió con error {res.status_code}")
+        st.info("Asegúrate de que el endpoint /config/strategies existe en tu backend.")
     else:
-        st.warning("No se pudo cargar la configuracion")
+        
+        st.warning("No se pudo establecer comunicación con el servidor.")
