@@ -5,7 +5,6 @@ import os
 # --- CONFIGURACION ---
 st.set_page_config(page_title="Fintech Mini Bank", layout="wide")
 
-# La URL interna de Docker segun tu docker-compose
 API_URL = os.getenv("API_URL", "http://api:8000")
 TIMEOUT = 5
 
@@ -14,7 +13,7 @@ st.title("Fintech Mini Bank - Gestion")
 
 # --- NAVEGACION ---
 st.sidebar.header("Menu de Navegacion")
-page = st.sidebar.radio("Seleccione una pagina:", ["Crear Cliente", "Crear Cuenta", "Ver Cuenta", "Transacciones", "Historial"])
+page = st.sidebar.radio("Seleccione una pagina:", ["Crear Cliente", "Crear Cuenta", "Ver Cuenta", "Transacciones", "Historial", "Configuracion"])
 
 # --- FUNCIONES DE APOYO (Manejo de errores solicitado) ---
 
@@ -46,6 +45,23 @@ def show_error(resp):
         except:
             # Si no es un JSON valido
             st.error(f"Error {resp.status_code}: {resp.text}")
+
+# --- FUNCIÓN PARA ERRORES CRÍTICOS ---
+def parse_business_error(detail):
+    """Mapea errores del backend a mensajes claros segun requerimientos."""
+    
+    # Convertimos a string por si detail es una lista o dict
+    detail_str = str(detail).lower()
+    
+    if "insufficient" in detail_str:
+        return "Fondos insuficientes"
+    if "frozen" in detail_str or "operable" in detail_str or "congelada" in detail_str:
+        return "Cuenta congelada - no puede operar"
+    if "limit" in detail_str or "limite" in detail_str:
+        return "Limite diario excedido"
+    
+    # Si no coincide con ninguno, devuelve el error original limpio
+    return detail
 
 # --- PAGINA: CREAR CLIENTE ---
 if page == "Crear Cliente":
@@ -95,9 +111,11 @@ elif page == "Crear Cuenta":
 elif page == "Ver Cuenta":
     st.header("Pagina: Ver Cuenta")
     # Criterio: input account_id
-    acc_id = st.text_input("Ingrese el ID de la cuenta")
+    with st.form("form_cuenta"):  
+        acc_id = st.text_input("Ingrese el ID de la cuenta")
+        submit = st.form_submit_button("Obtener informacion")
     
-    if acc_id:
+    if submit:
         res = call_api("GET", f"/accounts/{acc_id}")
         if res is not None:
             if res.status_code == 200:
@@ -112,30 +130,17 @@ elif page == "Ver Cuenta":
             else:
                 show_error(res)
 
-# PARA EL MANEJO DE TRANSACCIONES
-
-# --- FUNCIÓN PARA ERRORES CRÍTICOS ---
-def parse_business_error(detail):
-    """Mapea errores del backend a mensajes claros segun requerimientos."""
-    
-    # Convertimos a string por si detail es una lista o dict
-    detail_str = str(detail).lower()
-    
-    if "insufficient" in detail_str:
-        return "Fondos insuficientes"
-    if "frozen" in detail_str or "operable" in detail_str or "congelada" in detail_str:
-        return "Cuenta congelada - no puede operar"
-    if "limit" in detail_str or "limite" in detail_str:
-        return "Limite diario excedido"
-    
-    # Si no coincide con ninguno, devuelve el error original limpio
-    return detail
-
-# --- LÓGICA DE LA PÁGINA DE TRANSACCIONES ---
-if page == "Transacciones":
+# --- PAGINA: TRANSACCIONES (CON VERIFICADOR) ---
+elif page == "Transacciones":
     st.header("Pagina: Gestion de Transacciones")
+
+    # --- BLOQUE NUEVO: VERIFICADOR DE ESTADO REAL ---
+    res_conf = call_api("GET", "/config/strategies")
+    if res_conf and res_conf.status_code == 200:
+        current_fee = res_conf.json().get("fee", "desconocida")
+        st.info(f"**Estrategia activa en el servidor:** {current_fee.upper()}")
+    # -----------------------------------------------
     
-    # Selector de tipo de operacion mediante pestañas
     tab_dep, tab_wit, tab_tra = st.tabs(["Depositar", "Retirar", "Transferir"])
 
     # --- PESTAÑA: DEPOSITAR ---
@@ -154,13 +159,7 @@ if page == "Transacciones":
                         st.success("Operacion realizada con exito")
                         st.json(res.json())
                     else:
-                        
-                        try:
-                            error_data = res.json()
-                            detail = error_data.get("detail", "Error desconocido")
-                            st.error(parse_business_error(detail))
-                        except Exception:
-                            st.error(f"Error {res.status_code}: {res.text}")
+                        show_error(res)
 
     # --- PESTAÑA: RETIRAR ---
     with tab_wit:
@@ -178,13 +177,10 @@ if page == "Transacciones":
                         st.success("Operacion realizada con exito")
                         st.json(res.json())
                     else:
-                        
-                        try:
-                            error_data = res.json()
-                            detail = error_data.get("detail", "Error desconocido")
-                            st.error(parse_business_error(detail))
-                        except Exception:
-                            st.error(f"Error {res.status_code}: {res.text}")
+                        # Aquí capturamos el error detallado que mencionas
+                        error_data = res.json()
+                        detail = error_data.get("detail", "Error desconocido")
+                        st.error(parse_business_error(detail))
 
     # --- PESTAÑA: TRANSFERIR ---
     with tab_tra:
@@ -207,20 +203,18 @@ if page == "Transacciones":
                             st.success("Operacion realizada con exito")
                             st.json(res.json())
                         else:
-                            
-                            try:
-                                error_data = res.json()
-                                detail = error_data.get("detail", "Error desconocido")
-                                st.error(parse_business_error(detail))
-                            except Exception:
-                                st.error(f"Error {res.status_code}: {res.text}")
+                            error_data = res.json()
+                            detail = error_data.get("detail", "Error desconocido")
+                            st.error(parse_business_error(detail))
 
 # --- PÁGINA: HISTORIAL ---
 elif page == "Historial":
     st.header("Pagina: Historial de Movimientos")
-    acc_id = st.text_input("Ingrese el ID de la cuenta")
+    with st.form("form_cuenta"): 
+        acc_id = st.text_input("Ingrese el ID de la cuenta")
+        submit = st.form_submit_button("Ver historial")
     
-    if acc_id:
+    if submit:
         with st.spinner("Buscando transacciones..."):
             res = call_api("GET", f"/accounts/{acc_id}/transactions")
             if res is not None:
@@ -232,3 +226,69 @@ elif page == "Historial":
                         st.info("No se registraron movimientos para esta cuenta")
                 elif res:
                     show_error(res)
+
+
+# --- PAGINA: CONFIGURACION DE ESTRATEGIAS ---
+
+elif page == "Configuracion":
+    st.header("Configuracion de Estrategias")
+    
+    res = call_api("GET", "/config/strategies")
+    if res and res.status_code == 200:
+        config = res.json()
+        
+        tab_fee, tab_risk = st.tabs(["Comisiones (Fee)", "Reglas de Riesgo"])
+        
+        with tab_fee:
+            opciones = ["no", "flat", "percent", "tiered"]
+            index_actual = opciones.index(config["fee"])
+            
+            fee_selection = st.radio(
+                "Seleccione el tipo de comision:",
+                options=opciones,
+                index=index_actual,
+                format_func=lambda x: {
+                    "no": "Sin comision",
+                    "flat": "Fija ($0.50)",
+                    "percent": "Porcentual (1.5%)",
+                    "tiered": "Rangos"
+                }[x],
+                key="radio_estrategia"
+            )
+
+            if fee_selection != config["fee"]:
+                with st.spinner("Sincronizando..."):
+                    update_res = call_api("POST", f"/config/strategies/fee?fee_type={fee_selection}")
+                    if update_res and update_res.status_code == 200:
+                        st.success(f"Configuración actualizada a {fee_selection}")
+                        st.rerun()
+
+        with tab_risk:
+            st.subheader("Reglas de Riesgo")
+            risk = config["risk"]
+            
+            # Max Amount
+            c1, c2 = st.columns([3, 1])
+            max_en = c2.toggle("Activar", value=risk["max_amount"], key="t_max")
+            c1.markdown("**Maximo Monto** (Limite $1000)")
+            if max_en != risk["max_amount"]:
+                call_api("POST", f"/config/strategies/risk/max_amount?enabled={str(max_en).lower()}")
+                st.rerun()
+
+            # Velocity
+            c1, c2 = st.columns([3, 1])
+            vel_en = c2.toggle("Activar", value=risk["velocity"], key="t_vel")
+            c1.markdown("**Limite de Velocidad** (5 tx / 10min)")
+            if vel_en != risk["velocity"]:
+                call_api("POST", f"/config/strategies/risk/velocity?enabled={str(vel_en).lower()}")
+                st.rerun()
+
+            # Daily Limit
+            c1, c2 = st.columns([3, 1])
+            day_en = c2.toggle("Activar", value=risk["daily_limit"], key="t_day")
+            c1.markdown("**Limite Diario** (Acumulado $2000)")
+            if day_en != risk["daily_limit"]:
+                call_api("POST", f"/config/strategies/risk/daily_limit?enabled={str(day_en).lower()}")
+                st.rerun()
+    else:
+        st.warning("No se pudo cargar la configuracion")
